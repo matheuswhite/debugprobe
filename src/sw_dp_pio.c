@@ -34,10 +34,11 @@
 #define MAKE_KHZ(x) (CPU_CLOCK / (2000 * ((x) + 1)))
 volatile uint32_t cached_delay = 0;
 
-// Generate SWJ Sequence
-//   count:  sequence bit count
-//   data:   pointer to sequence bit data
-//   return: none
+/* Generate SWJ Sequence
+ *   count:  sequence bit count
+ *   data:   pointer to sequence bit data
+ *   return: none
+ */
 #if ((DAP_SWD != 0) || (DAP_JTAG != 0))
 void SWJ_Sequence(uint32_t count, const uint8_t *data)
 {
@@ -62,11 +63,12 @@ void SWJ_Sequence(uint32_t count, const uint8_t *data)
 }
 #endif
 
-// Generate SWD Sequence
-//   info:   sequence information
-//   swdo:   pointer to SWDIO generated data
-//   swdi:   pointer to SWDIO captured data
-//   return: none
+/* Generate SWD Sequence
+ *   info:   sequence information
+ *   swdo:   pointer to SWDIO generated data
+ *   swdi:   pointer to SWDIO captured data
+ *   return: none
+ */
 #if (DAP_SWD != 0)
 void SWD_Sequence(uint32_t info, const uint8_t *swdo, uint8_t *swdi)
 {
@@ -108,10 +110,11 @@ void SWD_Sequence(uint32_t info, const uint8_t *swdo, uint8_t *swdi)
 #endif
 
 #if (DAP_SWD != 0)
-// SWD Transfer I/O
-//   request: A[3:2] RnW APnDP
-//   data:    DATA[31:0]
-//   return:  ACK[2:0]
+/* SWD Transfer I/O
+ *   request: A[3:2] RnW APnDP
+ *   data:    DATA[31:0]
+ *   return:  ACK[2:0]
+ */
 uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 {
 	uint8_t prq = 0;

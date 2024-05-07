@@ -37,7 +37,7 @@
 
 #define DIV_ROUND_UP(m, n) (((m) + (n)-1) / (n))
 
-// Only want to set / clear one gpio per event so go up in powers of 2
+/* Only want to set / clear one gpio per event so go up in powers of 2 */
 enum _dbg_pins {
 	DBG_PIN_WRITE = 1,
 	DBG_PIN_WRITE_WAIT = 2,
@@ -47,12 +47,12 @@ enum _dbg_pins {
 
 CU_REGISTER_DEBUG_PINS(probe_timing)
 
-// Uncomment to enable debug
+/* Uncomment below code to enable debug */
 // CU_SELECT_DEBUG_PINS(probe_timing)
 
 #define PROBE_BUF_SIZE 8192
 struct _probe {
-	// PIO offset
+	/* PIO offset */
 	uint offset;
 	uint initted;
 };
@@ -109,7 +109,7 @@ void probe_write_bits(uint bit_count, uint32_t data_byte)
 	pio_sm_put_blocking(pio0, PROBE_SM, fmt_probe_command(bit_count, true, CMD_WRITE));
 	pio_sm_put_blocking(pio0, PROBE_SM, data_byte);
 	probe_dump("Write %d bits 0x%x\n", bit_count, data_byte);
-	// Return immediately so we can cue up the next command whilst this one runs
+	/* Return immediately so we can cue up the next command whilst this one runs */
 	DEBUG_PINS_CLR(probe_timing, DBG_PIN_WRITE);
 }
 
@@ -163,10 +163,10 @@ void probe_init()
 		probe_sm_init(&sm_config);
 		pio_sm_init(pio0, PROBE_SM, offset, &sm_config);
 
-		// Set up divisor
+		/* Set up divisor */
 		probe_set_swclk_freq(1000);
 
-		// Jump SM to command dispatch routine, and enable it
+		/* Jump SM to command dispatch routine, and enable it */
 		pio_sm_exec(pio0, PROBE_SM, offset + probe_offset_get_next_cmd);
 		pio_sm_set_enabled(pio0, PROBE_SM, 1);
 		probe.initted = 1;
@@ -180,7 +180,8 @@ void probe_deinit(void)
 		pio_sm_set_enabled(pio0, PROBE_SM, 0);
 		pio_remove_program(pio0, &probe_program, probe.offset);
 
-		probe_assert_reset(1); // de-assert nRESET
+		/* de-assert nRESET */
+		probe_assert_reset(1);
 
 		probe.initted = 0;
 	}

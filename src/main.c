@@ -42,8 +42,8 @@
 #include "tusb_edpt_handler.h"
 #include "DAP.h"
 
-// UART0 for debugprobe debug
-// UART1 for debugprobe to target device
+/* UART0 for debugprobe debug */
+/* UART1 for debugprobe to target device */
 
 static uint8_t TxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
 static uint8_t RxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
@@ -69,21 +69,21 @@ void usb_thread(void *ptr)
 			gpio_put(PROBE_USB_CONNECTED_LED, 0);
 		}
 #endif
-		// Go to sleep for up to a tick if nothing to do
+		/* Go to sleep for up to a tick if nothing to do */
 		if (!tud_task_event_ready()) {
 			xTaskDelayUntil(&wake, 1);
 		}
 	} while (1);
 }
 
-// Workaround API change in 0.13
+/* Workaround API change in 0.13 */
 #if (TUSB_VERSION_MAJOR == 0) && (TUSB_VERSION_MINOR <= 12)
 #define tud_vendor_flush(x) ((void)0)
 #endif
 
 int main(void)
 {
-	// Declare pins in binary information
+	/* Declare pins in binary information */
 	bi_decl_config();
 
 	board_init();
@@ -146,7 +146,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 {
 	uint32_t response_size = TU_MIN(CFG_TUD_HID_EP_BUFSIZE, bufsize);
 
-	// This doesn't use multiple report and report ID
+	/* This doesn't use multiple report and report ID */
 	(void)itf;
 	(void)report_id;
 	(void)report_type;
@@ -162,7 +162,7 @@ extern uint8_t const desc_ms_os_20[];
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
 				tusb_control_request_t const *request)
 {
-	// nothing to with DATA & ACK stage
+	/* nothing to with DATA & ACK stage */
 	if (stage != CONTROL_STAGE_SETUP) {
 		return true;
 	}
@@ -172,7 +172,7 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
 		switch (request->bRequest) {
 		case 1:
 			if (request->wIndex == 7) {
-				// Get Microsoft OS 2.0 compatible descriptor
+				/* Get Microsoft OS 2.0 compatible descriptor */
 				uint16_t total_len;
 				memcpy(&total_len, desc_ms_os_20 + 8, 2);
 
@@ -190,7 +190,7 @@ bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
 		break;
 	}
 
-	// stall unknown request
+	/* stall unknown request */
 	return false;
 }
 #endif

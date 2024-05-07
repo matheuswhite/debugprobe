@@ -90,7 +90,7 @@ bool cdc_task(void)
 	uint rx_len = 0;
 	bool keep_alive = false;
 
-	// Consume uart fifo regardless even if not connected
+	/* Consume uart fifo regardless even if not connected */
 	while (uart_is_readable(PROBE_UART_INTERFACE) && (rx_len < sizeof(rx_buf))) {
 		rx_buf[rx_len++] = uart_getc(PROBE_UART_INTERFACE);
 	}

@@ -34,7 +34,7 @@ extern "C" {
 // COMMON CONFIGURATION
 //--------------------------------------------------------------------
 
-// defined by compiler flags for flexibility
+/* defined by compiler flags for flexibility */
 #ifndef CFG_TUSB_MCU
 #error CFG_TUSB_MCU must be defined
 #endif
