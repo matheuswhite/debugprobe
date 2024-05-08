@@ -43,10 +43,12 @@
 /* UART0 for debugprobe debug */
 /* UART1 for debugprobe to target device */
 
-static uint8_t TxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
-static uint8_t RxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
-
 #define THREADED 1
+
+static uint8_t TxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
+#if (THREADED == 0) && (PROBE_DEBUG_PROTOCOL == PROTO_DAP_V2)
+static uint8_t RxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
+#endif /* (THREADED == 0) && (PROBE_DEBUG_PROTOCOL == PROTO_DAP_V2) */
 
 #define UART_TASK_PRIO (tskIDLE_PRIORITY + 3)
 #define TUD_TASK_PRIO  (tskIDLE_PRIORITY + 2)
