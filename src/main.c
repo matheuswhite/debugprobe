@@ -28,14 +28,12 @@
 #include "task.h"
 
 #include <pico/stdlib.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "bsp/board.h"
 #include "tusb.h"
 
 #include "probe_config.h"
-#include "probe.h"
 #include "cdc_uart.h"
 #include "get_serial.h"
 #include "led.h"
@@ -54,13 +52,17 @@ static uint8_t RxDataBuffer[CFG_TUD_HID_EP_BUFSIZE];
 #define TUD_TASK_PRIO  (tskIDLE_PRIORITY + 2)
 #define DAP_TASK_PRIO  (tskIDLE_PRIORITY + 1)
 
-TaskHandle_t dap_taskhandle, tud_taskhandle;
+TaskHandle_t dap_taskhandle;
+TaskHandle_t tud_taskhandle;
 
-void usb_thread(void *ptr)
+_Noreturn void usb_thread(void *ptr)
 {
+	(void)ptr;
+
 	TickType_t wake;
 	wake = xTaskGetTickCount();
-	do {
+
+	while (true) {
 		tud_task();
 #ifdef PROBE_USB_CONNECTED_LED
 		if (!gpio_get(PROBE_USB_CONNECTED_LED) && tud_ready()) {
@@ -73,7 +75,7 @@ void usb_thread(void *ptr)
 		if (!tud_task_event_ready()) {
 			xTaskDelayUntil(&wake, 1);
 		}
-	} while (1);
+	}
 }
 
 /* Workaround API change in 0.13 */
@@ -98,20 +100,21 @@ int main(void)
 
 	probe_info("Welcome to debugprobe!\n");
 
-	if (THREADED) {
-		/* UART needs to preempt USB as if we don't, characters get lost */
-		xTaskCreate(cdc_thread, "UART", configMINIMAL_STACK_SIZE, NULL, UART_TASK_PRIO,
-			    &uart_taskhandle);
-		xTaskCreate(usb_thread, "TUD", configMINIMAL_STACK_SIZE, NULL, TUD_TASK_PRIO,
-			    &tud_taskhandle);
-		/* Lowest priority thread is debug - need to shuffle buffers before we can toggle
-		 * swd... */
-		xTaskCreate(dap_thread, "DAP", configMINIMAL_STACK_SIZE, NULL, DAP_TASK_PRIO,
-			    &dap_taskhandle);
-		vTaskStartScheduler();
-	}
+#if THREADED == 1
+	/* UART needs to preempt USB as if we don't, characters get lost */
+	xTaskCreate(cdc_thread, "UART", configMINIMAL_STACK_SIZE, NULL, UART_TASK_PRIO,
+		    &uart_taskhandle);
+	xTaskCreate(usb_thread, "TUD", configMINIMAL_STACK_SIZE, NULL, TUD_TASK_PRIO,
+		    &tud_taskhandle);
+	/* Lowest priority thread is debug - need to shuffle buffers before we can toggle
+	 * swd... */
+	xTaskCreate(dap_thread, "DAP", configMINIMAL_STACK_SIZE, NULL, DAP_TASK_PRIO,
+		    &dap_taskhandle);
+	vTaskStartScheduler();
+#endif /* THREADED == 1 */
 
-	while (!THREADED) {
+#if THREADED == 0
+	while (true) {
 		tud_task();
 		cdc_task();
 
@@ -124,6 +127,7 @@ int main(void)
 		}
 #endif
 	}
+#endif /* THREADED == 0 */
 
 	return 0;
 }
@@ -142,7 +146,7 @@ uint16_t tud_hid_get_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t
 }
 
 void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t report_type,
-			   uint8_t const *RxDataBuffer, uint16_t bufsize)
+			   uint8_t const *RxDataBuffer_, uint16_t bufsize)
 {
 	uint32_t response_size = TU_MIN(CFG_TUD_HID_EP_BUFSIZE, bufsize);
 
@@ -151,7 +155,7 @@ void tud_hid_set_report_cb(uint8_t itf, uint8_t report_id, hid_report_type_t rep
 	(void)report_id;
 	(void)report_type;
 
-	DAP_ProcessCommand(RxDataBuffer, TxDataBuffer);
+	DAP_ProcessCommand(RxDataBuffer_, TxDataBuffer);
 
 	tud_hid_report(0, TxDataBuffer, response_size);
 }
@@ -162,47 +166,45 @@ extern uint8_t const desc_ms_os_20[];
 bool tud_vendor_control_xfer_cb(uint8_t rhport, uint8_t stage,
 				tusb_control_request_t const *request)
 {
+	uint16_t total_len;
+
 	/* nothing to with DATA & ACK stage */
 	if (stage != CONTROL_STAGE_SETUP) {
 		return true;
 	}
 
-	switch (request->bmRequestType_bit.type) {
-	case TUSB_REQ_TYPE_VENDOR:
-		switch (request->bRequest) {
-		case 1:
-			if (request->wIndex == 7) {
-				/* Get Microsoft OS 2.0 compatible descriptor */
-				uint16_t total_len;
-				memcpy(&total_len, desc_ms_os_20 + 8, 2);
-
-				return tud_control_xfer(rhport, request, (void *)desc_ms_os_20,
-							total_len);
-			} else {
-				return false;
-			}
-
-		default:
-			break;
-		}
-		break;
-	default:
-		break;
+	if (request->bmRequestType_bit.type != TUSB_REQ_TYPE_VENDOR) {
+		/* stall unknown request */
+		return false;
 	}
 
-	/* stall unknown request */
-	return false;
+	if (request->bRequest != 1) {
+		return false;
+	}
+
+	if (request->wIndex != 7) {
+		return false;
+	}
+
+	/* Get Microsoft OS 2.0 compatible descriptor */
+	memcpy(&total_len, desc_ms_os_20 + 8, 2);
+
+	return tud_control_xfer(rhport, request, (void *)desc_ms_os_20, total_len);
 }
 #endif
 
-void vApplicationTickHook(void){};
+void vApplicationTickHook(void)
+{
+}
 
 void vApplicationStackOverflowHook(TaskHandle_t Task, char *pcTaskName)
 {
+	(void)Task;
+
 	panic("stack overflow (not the helpful kind) for %s\n", *pcTaskName);
 }
 
 void vApplicationMallocFailedHook(void)
 {
 	panic("Malloc Failed\n");
-};
+}
