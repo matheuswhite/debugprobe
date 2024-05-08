@@ -22,14 +22,11 @@
  * implementation used for Debugprobe. Instead of calling bitbash functions,
  * hand off the bit sequences to a SM for asynchronous completion.
  */
-
-#include <stdio.h>
-
 #include "DAP_config.h"
 #include "DAP.h"
 #include "probe.h"
 
-/* Slight hack - we're not bitbashing so we need to set baudrate off the DAP's delay cycles.
+/* Slight hack - we're not bitbashing, so we need to set baudrate off the DAP's delay cycles.
  * Ideally we don't want calls to udiv everywhere... */
 #define MAKE_KHZ(x) (CPU_CLOCK / (2000 * ((x) + 1)))
 volatile uint32_t cached_delay = 0;
@@ -49,14 +46,12 @@ void SWJ_Sequence(uint32_t count, const uint8_t *data)
 		probe_set_swclk_freq(MAKE_KHZ(DAP_Data.clock_delay));
 		cached_delay = DAP_Data.clock_delay;
 	}
+
 	probe_debug("SWJ sequence count = %d FDB=0x%2x\n", count, data[0]);
+
 	n = count;
 	while (n > 0) {
-		if (n > 8) {
-			bits = 8;
-		} else {
-			bits = n;
-		}
+		bits = (n > 8) ? 8 : n;
 		probe_write_bits(bits, *data++);
 		n -= bits;
 	}
@@ -79,32 +74,22 @@ void SWD_Sequence(uint32_t info, const uint8_t *swdo, uint8_t *swdi)
 		probe_set_swclk_freq(MAKE_KHZ(DAP_Data.clock_delay));
 		cached_delay = DAP_Data.clock_delay;
 	}
+
 	probe_debug("SWD sequence\n");
+
 	n = info & SWD_SEQUENCE_CLK;
 	if (n == 0U) {
 		n = 64U;
 	}
-	bits = n;
-	if (info & SWD_SEQUENCE_DIN) {
-		while (n > 0) {
-			if (n > 8) {
-				bits = 8;
-			} else {
-				bits = n;
-			}
+
+	while (n > 0) {
+		bits = (n > 8) ? 8 : n;
+		if (info & SWD_SEQUENCE_DIN) {
 			*swdi++ = probe_read_bits(bits);
-			n -= bits;
-		}
-	} else {
-		while (n > 0) {
-			if (n > 8) {
-				bits = 8;
-			} else {
-				bits = n;
-			}
+		} else {
 			probe_write_bits(bits, *swdo++);
-			n -= bits;
 		}
+		n -= bits;
 	}
 }
 #endif
@@ -120,7 +105,7 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 	uint8_t prq = 0;
 	uint8_t ack;
 	uint8_t bit;
-	uint32_t val = 0;
+	uint32_t val;
 	uint32_t parity = 0;
 	uint32_t n;
 
@@ -128,7 +113,9 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 		probe_set_swclk_freq(MAKE_KHZ(DAP_Data.clock_delay));
 		cached_delay = DAP_Data.clock_delay;
 	}
+
 	probe_debug("SWD_transfer\n");
+
 	/* Generate the request packet */
 	prq |= (1 << 0); /* Start Bit */
 	for (n = 1; n < 5; n++) {
@@ -156,10 +143,13 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 				/* Parity error */
 				ack = DAP_TRANSFER_ERROR;
 			}
-			if (data) {
+
+			if (data != NULL) {
 				*data = val;
 			}
+
 			probe_debug("Read %02x ack %02x 0x%08x parity %01x\n", prq, ack, val, bit);
+
 			/* Turnaround for line idle */
 			probe_hiz_clocks(DAP_Data.swd_conf.turnaround);
 		} else {
@@ -167,14 +157,17 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 			probe_hiz_clocks(DAP_Data.swd_conf.turnaround);
 
 			/* Write WDATA[0:31] */
+			// TODO data may be null
 			val = *data;
 			probe_write_bits(32, val);
 			parity = __builtin_popcount(val);
+
 			/* Write Parity Bit */
 			probe_write_bits(1, parity & 0x1);
 			probe_debug("write %02x ack %02x 0x%08x parity %01x\n", prq, ack, val,
 				    parity);
 		}
+
 		/* Capture Timestamp */
 		if (request & DAP_TRANSFER_TIMESTAMP) {
 			DAP_Data.timestamp = time_us_32();
@@ -192,6 +185,7 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 				}
 			}
 		}
+
 		return ((uint8_t)ack);
 	}
 
@@ -200,20 +194,25 @@ uint8_t SWD_Transfer(uint32_t request, uint32_t *data)
 			/* Dummy Read RDATA[0:31] + Parity */
 			probe_read_bits(33);
 		}
+
 		probe_hiz_clocks(DAP_Data.swd_conf.turnaround);
+
 		if (DAP_Data.swd_conf.data_phase && ((request & DAP_TRANSFER_RnW) == 0U)) {
 			/* Dummy Write WDATA[0:31] + Parity */
 			probe_write_bits(32, 0);
 			probe_write_bits(1, 0);
 		}
+
 		return ((uint8_t)ack);
 	}
 
 	/* Protocol error */
 	n = DAP_Data.swd_conf.turnaround + 32U + 1U;
+
 	/* Back off data phase */
 	probe_read_bits(n);
-	return ((uint8_t)ack);
+
+	return (uint8_t)ack;
 }
 
 #endif /* (DAP_SWD != 0) */
