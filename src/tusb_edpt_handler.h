@@ -23,7 +23,8 @@ typedef struct {
 	volatile bool wasFull;
 } buffer_t;
 
-extern TaskHandle_t dap_taskhandle, tud_taskhandle;
+extern TaskHandle_t dap_taskhandle;
+extern TaskHandle_t tud_taskhandle;
 
 /* Main DAP loop */
 void dap_thread(void *ptr);
