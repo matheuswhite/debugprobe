@@ -24,8 +24,6 @@
  */
 
 #include <pico/stdlib.h>
-#include <stdint.h>
-
 #include "probe_config.h"
 
 void led_init(void)
